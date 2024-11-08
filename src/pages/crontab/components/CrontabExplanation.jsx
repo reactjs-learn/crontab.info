@@ -21,8 +21,6 @@ const CrontabExplanation = ({ crontabValue, invalidFields = [], onRandomGenerate
     }
   }, [crontabValue, invalidFields]);
 
-  console.log(crontabValue, invalidFields);
-
   const getFieldColor = (fieldIndex) => {
     return invalidFields.includes(fieldIndex) ? "#ff0000" : "white";
   };

@@ -79,7 +79,7 @@ const RightSidebarView = ({ crontabValue, setCrontabValue, onRandomGenerate }) =
           </Grid>
           <Grid item xs={12} md={6}>
             <StyledPaper>
-              <CrontabNextRuns runs={nextRuns} />
+              <CrontabNextRuns runs={nextRuns} crontabValue={crontabValue} />
             </StyledPaper>
           </Grid>
         </Grid>
