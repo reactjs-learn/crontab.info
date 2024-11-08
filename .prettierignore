@@ -1,0 +1,20 @@
+# Ignore artifacts:
+build
+coverage
+dist
+
+# Ignore all HTML files:
+*.html
+
+# Ignore node_modules
+node_modules
+
+# Ignore package files
+package-lock.json
+yarn.lock
+
+# Ignore git related files
+.gitignore
+
+# Ignore markdown files
+*.md 
