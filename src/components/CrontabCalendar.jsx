@@ -7,6 +7,7 @@ import { StaticTimePicker } from "@mui/x-date-pickers/StaticTimePicker";
 import { DigitalClock } from "@mui/x-date-pickers/DigitalClock";
 import { ChevronLeft, ChevronRight, Schedule } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
+import { generateCrontabFromDate } from "../utils/crontabUtils";
 
 // Create styled components with higher specificity
 const StyledPickerRoot = styled("div")(({ theme }) => ({
@@ -37,8 +38,13 @@ const StyledPickerRoot = styled("div")(({ theme }) => ({
   },
 }));
 
-const CrontabCalendar = ({ selectedDate, onDateChange }) => {
+const CrontabCalendar = ({ selectedDate, onDateChange, crontabValue, onCrontabChange }) => {
   const [clockType, setClockType] = useState("analog");
+
+  const handleDateChange = (newDate) => {
+    onDateChange(newDate);
+    onCrontabChange(generateCrontabFromDate(newDate));
+  };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -57,7 +63,7 @@ const CrontabCalendar = ({ selectedDate, onDateChange }) => {
             <StaticDatePicker
               displayStaticWrapperAs="desktop"
               value={selectedDate}
-              onChange={onDateChange}
+              onChange={handleDateChange}
               components={{
                 LeftArrowButton: (props) => (
                   <IconButton {...props} sx={{ color: "text.primary" }}>
@@ -157,7 +163,7 @@ const CrontabCalendar = ({ selectedDate, onDateChange }) => {
                 <StaticTimePicker
                   displayStaticWrapperAs="desktop"
                   value={selectedDate}
-                  onChange={onDateChange}
+                  onChange={handleDateChange}
                   sx={{
                     bgcolor: "#2a2a2a",
                     "& .MuiClock-pin": {
@@ -190,7 +196,7 @@ const CrontabCalendar = ({ selectedDate, onDateChange }) => {
               <Box sx={{ flex: 1, maxHeight: "200px", bgcolor: "#2a2a2a" }}>
                 <DigitalClock
                   value={selectedDate}
-                  onChange={onDateChange}
+                  onChange={handleDateChange}
                   sx={{
                     bgcolor: "#2a2a2a",
                     "& .MuiList-root": {

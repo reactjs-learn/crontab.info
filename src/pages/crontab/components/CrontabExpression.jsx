@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Typography, TextField } from "@mui/material";
 import { styled } from "@mui/material/styles";
+import { validateCrontab, parseCrontabExpression } from "../../../utils/crontabUtils";
 
 const ExpressionField = styled(TextField)({
   "& .MuiInputBase-input": {
@@ -39,11 +40,31 @@ const FieldRange = styled(Typography)({
 
 const CrontabExpression = ({ value, onChange }) => {
   const [focusedField, setFocusedField] = React.useState(null);
+  const [invalidFields, setInvalidFields] = React.useState([]);
   const parts = value.split(" ");
+
+  const validateExpression = (expression) => {
+    const isValid = validateCrontab(expression);
+    if (!isValid) {
+      const parsed = parseCrontabExpression(expression);
+      const newInvalidFields = [];
+
+      if (!/^[0-9*,/-]+$/.test(parsed.minute)) newInvalidFields.push(0);
+      if (!/^[0-9*,/-]+$/.test(parsed.hour)) newInvalidFields.push(1);
+      if (!/^[0-9*,/-]+$/.test(parsed.dayOfMonth)) newInvalidFields.push(2);
+      if (!/^[0-9*,/-]+$/.test(parsed.month)) newInvalidFields.push(3);
+      if (!/^[0-9*,/-]+$/.test(parsed.dayOfWeek)) newInvalidFields.push(4);
+
+      setInvalidFields(newInvalidFields);
+    } else {
+      setInvalidFields([]);
+    }
+  };
 
   const handleChange = (e) => {
     const newValue = e.target.value;
     onChange(newValue);
+    validateExpression(newValue);
   };
 
   const handleClick = (e) => {
@@ -95,12 +116,16 @@ const CrontabExpression = ({ value, onChange }) => {
               transition: "all 0.2s",
               p: 1,
               borderRadius: 1,
-              backgroundColor: focusedField === index ? "rgba(255, 215, 0, 0.1)" : "transparent",
+              backgroundColor: invalidFields.includes(index)
+                ? "rgba(255, 0, 0, 0.1)"
+                : focusedField === index
+                  ? "rgba(255, 215, 0, 0.1)"
+                  : "transparent",
             }}
           >
             <FieldLabel
               sx={{
-                color: focusedField === index ? "#FFD700" : "#666",
+                color: invalidFields.includes(index) ? "#ff0000" : focusedField === index ? "#FFD700" : "#666",
               }}
             >
               {field.label}
