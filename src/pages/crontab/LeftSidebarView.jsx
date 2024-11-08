@@ -13,7 +13,7 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
   flexDirection: "column",
 }));
 
-const LeftSidebarView = ({ selectedDate, onDateChange, crontabValue }) => {
+const LeftSidebarView = ({ selectedDate, onDateChange, crontabValue, onCrontabChange }) => {
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <StyledPaper
@@ -24,7 +24,12 @@ const LeftSidebarView = ({ selectedDate, onDateChange, crontabValue }) => {
           overflow: "hidden",
         }}
       >
-        <CrontabCalendar selectedDate={selectedDate} onDateChange={onDateChange} crontabValue={crontabValue} />
+        <CrontabCalendar
+          selectedDate={selectedDate}
+          onDateChange={onDateChange}
+          crontabValue={crontabValue}
+          onCrontabChange={onCrontabChange}
+        />
       </StyledPaper>
     </Box>
   );

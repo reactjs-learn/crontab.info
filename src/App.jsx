@@ -7,7 +7,7 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 overflow-hidden p-6">
+      <main className="flex-1 overflow-hidden p-3">
         <div className="h-full">
           <CrontabConfigPage />
         </div>

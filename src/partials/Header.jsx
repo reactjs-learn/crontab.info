@@ -6,7 +6,7 @@ const Header = () => {
   const { darkMode, toggleTheme } = useTheme();
 
   return (
-    <header className={`w-full p-4 ${darkMode ? "bg-gray-800" : "bg-white"} shadow-md`}>
+    <header className={`w-full p-3 ${darkMode ? "bg-gray-800" : "bg-white"} shadow-md`}>
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex items-center">
           <Typography

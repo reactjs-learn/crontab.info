@@ -1,4 +1,5 @@
 import { parse } from "cron-parser";
+import { parseExpression } from "cron-parser";
 
 const validateRange = (value, min, max) => {
   // Handle '*' case
@@ -96,6 +97,60 @@ export const parseCrontabExpression = (expression) => {
   };
 };
 
-export const generateCrontabFromDate = (date) => {
-  return `${date.getMinutes()} ${date.getHours()} ${date.getDate()} ${date.getMonth() + 1} *`;
+export const generateCrontabFromDate = (date, preservePattern = "* * * * *") => {
+  if (!date || isNaN(date.getTime())) {
+    return preservePattern;
+  }
+
+  const parts = preservePattern.split(" ");
+  return [
+    parts[0] === "*" ? "*" : date.getMinutes(),
+    parts[1] === "*" ? "*" : date.getHours(),
+    parts[2] === "*" ? "*" : date.getDate(),
+    parts[3] === "*" ? "*" : date.getMonth() + 1,
+    parts[4], // Keep original day of week pattern
+  ].join(" ");
+};
+
+export const parseCrontabForCalendar = (expression) => {
+  const parts = expression.split(" ");
+  const now = new Date();
+
+  return {
+    minute: parts[0] === "*" ? now.getMinutes() : parseInt(parts[0], 10),
+    hour: parts[1] === "*" ? now.getHours() : parseInt(parts[1], 10),
+    dayOfMonth: parts[2] === "*" ? now.getDate() : parseInt(parts[2], 10),
+    month: parts[3] === "*" ? now.getMonth() + 1 : parseInt(parts[3], 10),
+    dayOfWeek: parts[4] === "*" ? now.getDay() : parseInt(parts[4], 10),
+  };
+};
+
+export const getNextOccurrence = (expression) => {
+  try {
+    const interval = parseExpression(expression, {
+      currentDate: new Date(),
+      iterator: true,
+      utc: false,
+    });
+    return interval.next().value.toDate();
+  } catch (err) {
+    console.error("Error parsing cron expression:", err);
+    return null;
+  }
+};
+
+export const formatDateTime = (date) => {
+  if (!date) return "";
+
+  const options = {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  };
+
+  return date.toLocaleString("en-US", options);
 };

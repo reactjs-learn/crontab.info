@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, IconButton, Button } from "@mui/material";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -7,7 +7,7 @@ import { StaticTimePicker } from "@mui/x-date-pickers/StaticTimePicker";
 import { DigitalClock } from "@mui/x-date-pickers/DigitalClock";
 import { ChevronLeft, ChevronRight, Schedule } from "@mui/icons-material";
 import { styled } from "@mui/material/styles";
-import { generateCrontabFromDate } from "../utils/crontabUtils";
+import { generateCrontabFromDate, parseCrontabForCalendar } from "../utils/crontabUtils";
 
 // Create styled components with higher specificity
 const StyledPickerRoot = styled("div")(({ theme }) => ({
@@ -41,9 +41,78 @@ const StyledPickerRoot = styled("div")(({ theme }) => ({
 const CrontabCalendar = ({ selectedDate, onDateChange, crontabValue, onCrontabChange }) => {
   const [clockType, setClockType] = useState("analog");
 
+  // Initial sync effect
+  useEffect(() => {
+    const now = new Date();
+    const parts = crontabValue.split(" ");
+
+    // If all parts are asterisks, set the current date/time
+    if (parts.every((part) => part === "*")) {
+      const newCrontab = `${now.getMinutes()} ${now.getHours()} ${now.getDate()} ${now.getMonth() + 1} *`;
+      onCrontabChange(newCrontab);
+      onDateChange(now);
+    }
+  }, []);
+
+  useEffect(() => {
+    const parsed = parseCrontabForCalendar(crontabValue);
+    const currentDate = new Date(selectedDate);
+
+    // Only update if the time components are different
+    if (
+      currentDate.getHours() !== parsed.hour ||
+      currentDate.getMinutes() !== parsed.minute ||
+      currentDate.getDate() !== parsed.dayOfMonth ||
+      currentDate.getMonth() + 1 !== parsed.month
+    ) {
+      const newDate = new Date(
+        currentDate.getFullYear(),
+        parsed.month - 1,
+        parsed.dayOfMonth,
+        parsed.hour,
+        parsed.minute
+      );
+
+      if (!isNaN(newDate.getTime())) {
+        onDateChange(newDate);
+      }
+    }
+  }, [crontabValue]);
+
+  const handleTimeChange = (newDate) => {
+    if (newDate && !isNaN(newDate.getTime())) {
+      onDateChange(newDate);
+
+      // Generate new crontab value, preserving asterisks in original expression
+      const parts = crontabValue.split(" ");
+      const newCrontab = [
+        parts[0] === "*" ? "*" : newDate.getMinutes(),
+        parts[1] === "*" ? "*" : newDate.getHours(),
+        parts[2] === "*" ? "*" : newDate.getDate(),
+        parts[3] === "*" ? "*" : newDate.getMonth() + 1,
+        parts[4], // Preserve day of week setting
+      ].join(" ");
+
+      onCrontabChange(newCrontab);
+    }
+  };
+
   const handleDateChange = (newDate) => {
-    onDateChange(newDate);
-    onCrontabChange(generateCrontabFromDate(newDate));
+    if (newDate && !isNaN(newDate.getTime())) {
+      onDateChange(newDate);
+
+      // Generate new crontab value, preserving asterisks in original expression
+      const parts = crontabValue.split(" ");
+      const newCrontab = [
+        parts[0] === "*" ? "*" : selectedDate.getMinutes(), // Keep existing minutes
+        parts[1] === "*" ? "*" : selectedDate.getHours(), // Keep existing hours
+        parts[2] === "*" ? "*" : newDate.getDate(),
+        parts[3] === "*" ? "*" : newDate.getMonth() + 1,
+        parts[4], // Preserve day of week setting
+      ].join(" ");
+
+      onCrontabChange(newCrontab);
+    }
   };
 
   return (
@@ -163,7 +232,7 @@ const CrontabCalendar = ({ selectedDate, onDateChange, crontabValue, onCrontabCh
                 <StaticTimePicker
                   displayStaticWrapperAs="desktop"
                   value={selectedDate}
-                  onChange={handleDateChange}
+                  onChange={handleTimeChange}
                   sx={{
                     bgcolor: "#2a2a2a",
                     "& .MuiClock-pin": {
@@ -193,15 +262,35 @@ const CrontabCalendar = ({ selectedDate, onDateChange, crontabValue, onCrontabCh
                 />
               </Box>
             ) : (
-              <Box sx={{ flex: 1, maxHeight: "200px", bgcolor: "#2a2a2a" }}>
+              <Box sx={{ flex: 1, maxHeight: "200px", bgcolor: "#2a2a2a", overflow: "hidden" }}>
                 <DigitalClock
                   value={selectedDate}
-                  onChange={handleDateChange}
+                  onChange={handleTimeChange}
+                  ampm={false}
+                  skipDisabled
+                  timeSteps={{ hours: 1, minutes: 1 }}
                   sx={{
                     bgcolor: "#2a2a2a",
+                    height: "100%",
                     "& .MuiList-root": {
                       padding: 0,
                       bgcolor: "#2a2a2a",
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                    },
+                    "& .MuiList-root::-webkit-scrollbar": {
+                      width: "8px",
+                    },
+                    "& .MuiList-root::-webkit-scrollbar-track": {
+                      background: "rgba(255,255,255,0.1)",
+                      borderRadius: "4px",
+                    },
+                    "& .MuiList-root::-webkit-scrollbar-thumb": {
+                      background: "rgba(255,215,0,0.3)",
+                      borderRadius: "4px",
+                    },
+                    "& .MuiList-root::-webkit-scrollbar-thumb:hover": {
+                      background: "rgba(255,215,0,0.5)",
                     },
                     "& .MuiDigitalClock-item": {
                       color: "text.primary",

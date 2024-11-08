@@ -1,8 +1,26 @@
-import React from "react";
-import { Typography } from "@mui/material";
-import { parseCrontabExpression } from "../../../utils/crontabUtils";
+import React, { useState, useEffect } from "react";
+import { Tooltip, Typography } from "@mui/material";
+import { parseCrontabExpression, getNextOccurrence, formatDateTime } from "../../../utils/crontabUtils";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
-const CrontabExplanation = ({ crontabValue, invalidFields = [] }) => {
+const CrontabExplanation = ({ crontabValue, invalidFields = [], onRandomGenerate, focusedField }) => {
+  const [nextRun, setNextRun] = useState(null);
+  const [copyTooltip, setCopyTooltip] = useState(false);
+
+  useEffect(() => {
+    if (invalidFields.length === 0 && crontabValue) {
+      try {
+        const nextDate = getNextOccurrence(crontabValue);
+        setNextRun(nextDate);
+      } catch (error) {
+        console.error("Error getting next occurrence:", error);
+        setNextRun(null);
+      }
+    } else {
+      setNextRun(null);
+    }
+  }, [crontabValue, invalidFields]);
+
   console.log(crontabValue, invalidFields);
 
   const getFieldColor = (fieldIndex) => {
@@ -28,51 +46,39 @@ const CrontabExplanation = ({ crontabValue, invalidFields = [] }) => {
     .map((day) => dayOfWeekMap[day] || day)
     .join(", ");
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(crontabValue);
+    setCopyTooltip(true);
+    setTimeout(() => setCopyTooltip(false), 1500);
+  };
+
+  const getFieldStyle = (fieldIndex) => ({
+    color: getFieldColor(fieldIndex),
+    fontSize: "inherit",
+    opacity: invalidFields.includes(fieldIndex) ? 0.5 : 1,
+    backgroundColor: focusedField === fieldIndex ? "rgba(255, 215, 0, 0.1)" : "transparent",
+    padding: "0 4px",
+    borderRadius: "4px",
+    transition: "background-color 0.2s ease",
+  });
+
   return (
     <>
       <Typography sx={{ color: "text.secondary", mb: 1, fontSize: "2rem" }}>
         "At{" "}
-        <Typography
-          component="span"
-          sx={{
-            color: getFieldColor(0),
-            fontSize: "inherit",
-            opacity: invalidFields.includes(0) || invalidFields.includes(1) ? 0.5 : 1,
-          }}
-        >
+        <Typography component="span" sx={getFieldStyle(0)}>
           {`${parsed.hour}:${parsed.minute}`}
         </Typography>{" "}
         on day-of-month{" "}
-        <Typography
-          component="span"
-          sx={{
-            color: getFieldColor(2),
-            fontSize: "inherit",
-            opacity: invalidFields.includes(2) ? 0.5 : 1,
-          }}
-        >
+        <Typography component="span" sx={getFieldStyle(2)}>
           {parsed.dayOfMonth}
         </Typography>{" "}
         of{" "}
-        <Typography
-          component="span"
-          sx={{
-            color: getFieldColor(3),
-            fontSize: "inherit",
-            opacity: invalidFields.includes(3) ? 0.5 : 1,
-          }}
-        >
+        <Typography component="span" sx={getFieldStyle(3)}>
           {parsed.month}
         </Typography>{" "}
         and every{" "}
-        <Typography
-          component="span"
-          sx={{
-            color: getFieldColor(4),
-            fontSize: "inherit",
-            opacity: invalidFields.includes(4) ? 0.5 : 1,
-          }}
-        >
+        <Typography component="span" sx={getFieldStyle(4)}>
           {dayOfWeekText}
         </Typography>
         "
@@ -80,10 +86,45 @@ const CrontabExplanation = ({ crontabValue, invalidFields = [] }) => {
       <Typography sx={{ color: "text.secondary" }}>
         {isValid ? (
           <>
-            next at {`${parsed.hour}:${parsed.minute}`}
-            <Typography component="span" sx={{ ml: 2, color: "#3399ff", cursor: "pointer" }}>
+            next at{" "}
+            <Typography
+              component="span"
+              sx={{
+                color: "#FFD700",
+                fontWeight: "medium",
+              }}
+            >
+              {nextRun ? formatDateTime(nextRun) : `${parsed.hour}:${parsed.minute}`}
+            </Typography>
+            <Typography
+              component="span"
+              sx={{
+                ml: 2,
+                color: "#3399ff",
+                cursor: "pointer",
+                "&:hover": {
+                  textDecoration: "underline",
+                },
+              }}
+              onClick={onRandomGenerate}
+            >
               random
             </Typography>
+            <Tooltip title={copyTooltip ? "Copied to clipboard!" : "Copy crontab value"} placement="top">
+              <ContentCopyIcon
+                sx={{
+                  ml: 2,
+                  color: "#3399ff",
+                  cursor: "pointer",
+                  fontSize: "1rem",
+                  verticalAlign: "middle",
+                  "&:hover": {
+                    opacity: 0.8,
+                  },
+                }}
+                onClick={handleCopy}
+              />
+            </Tooltip>
           </>
         ) : (
           <Typography component="span" sx={{ color: "#ff0000" }}>
