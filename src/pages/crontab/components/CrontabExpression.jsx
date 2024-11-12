@@ -71,21 +71,60 @@ const CrontabExpression = ({ value, onChange, onFieldFocus }) => {
   ];
 
   const validateExpression = (expression) => {
-    const isValid = validateCrontab(expression);
-    if (!isValid) {
-      const parsed = parseCrontabExpression(expression);
-      const newInvalidFields = [];
+    const parsed = parseCrontabExpression(expression);
+    const newInvalidFields = [];
 
-      if (!/^[0-9*,/-]+$/.test(parsed.minute)) newInvalidFields.push(0);
-      if (!/^[0-9*,/-]+$/.test(parsed.hour)) newInvalidFields.push(1);
-      if (!/^[0-9*,/-]+$/.test(parsed.dayOfMonth)) newInvalidFields.push(2);
-      if (!/^[0-9*,/-]+$/.test(parsed.month)) newInvalidFields.push(3);
-      if (!/^[0-9*,/-]+$/.test(parsed.dayOfWeek)) newInvalidFields.push(4);
+    const validateField = (value, min, max, index) => {
+      if (value === "*") return true;
 
-      setInvalidFields(newInvalidFields);
-    } else {
-      setInvalidFields([]);
-    }
+      // Handle multiple values (,)
+      const values = value.split(",");
+      for (const val of values) {
+        // Handle step values (/)
+        if (val.includes("/")) {
+          const [range, step] = val.split("/");
+          if (isNaN(step) || step < 1) {
+            newInvalidFields.push(index);
+            return false;
+          }
+          if (range !== "*" && !validateRange(range, min, max)) {
+            newInvalidFields.push(index);
+            return false;
+          }
+          continue;
+        }
+
+        // Handle ranges (-)
+        if (val.includes("-")) {
+          if (!validateRange(val, min, max)) {
+            newInvalidFields.push(index);
+            return false;
+          }
+          continue;
+        }
+
+        // Handle single values
+        const num = parseInt(val);
+        if (isNaN(num) || num < min || num > max) {
+          newInvalidFields.push(index);
+          return false;
+        }
+      }
+      return true;
+    };
+
+    const validateRange = (range, min, max) => {
+      const [start, end] = range.split("-").map(Number);
+      return !isNaN(start) && !isNaN(end) && start >= min && start <= max && end >= min && end <= max && start <= end;
+    };
+
+    validateField(parsed.minute, 0, 59, 0);
+    validateField(parsed.hour, 0, 23, 1);
+    validateField(parsed.dayOfMonth, 1, 31, 2);
+    validateField(parsed.month, 1, 12, 3);
+    validateField(parsed.dayOfWeek, 0, 6, 4);
+
+    setInvalidFields(newInvalidFields);
   };
 
   const handleChange = (e) => {

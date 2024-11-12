@@ -30,10 +30,64 @@ const CrontabNextRuns = ({ crontabValue }) => {
       { min: 0, max: 6 }, // day of week
     ];
 
+    const validateValue = (value, min, max) => {
+      const num = parseInt(value);
+      return !isNaN(num) && num >= min && num <= max;
+    };
+
+    const validateRange = (range, min, max) => {
+      const [start, end] = range.split("-").map(Number);
+      return !isNaN(start) && !isNaN(end) && start >= min && start <= max && end >= min && end <= max && start <= end;
+    };
+
+    const validateStep = (step, range, min, max) => {
+      const stepNum = parseInt(step);
+      if (isNaN(stepNum) || stepNum < 1 || stepNum > max) return false;
+
+      if (range === "*") return true;
+      return validateRange(range, min, max);
+    };
+
+    const validateList = (list, min, max) => {
+      return list.split(",").every((item) => {
+        // Handle ranges in lists (e.g., "1-5,7,9")
+        if (item.includes("-")) {
+          return validateRange(item, min, max);
+        }
+        // Handle steps in lists (e.g., "*/2,*/3")
+        if (item.includes("/")) {
+          const [range, step] = item.split("/");
+          return validateStep(step, range, min, max);
+        }
+        // Handle single values
+        return validateValue(item, min, max);
+      });
+    };
+
     return fields.every((field, index) => {
+      const { min, max } = ranges[index];
+
+      // Handle asterisk
       if (field === "*") return true;
-      const num = parseInt(field);
-      return !isNaN(num) && num >= ranges[index].min && num <= ranges[index].max;
+
+      // Handle lists (comma-separated values)
+      if (field.includes(",")) {
+        return validateList(field, min, max);
+      }
+
+      // Handle steps with ranges (e.g., "1-5/2")
+      if (field.includes("/")) {
+        const [range, step] = field.split("/");
+        return validateStep(step, range, min, max);
+      }
+
+      // Handle ranges (e.g., "1-5")
+      if (field.includes("-")) {
+        return validateRange(field, min, max);
+      }
+
+      // Handle single values
+      return validateValue(field, min, max);
     });
   };
 
@@ -66,10 +120,36 @@ const CrontabNextRuns = ({ crontabValue }) => {
       next.setSeconds(0);
       next.setMilliseconds(0);
 
+      const parseStepValue = (field) => {
+        if (field.includes("/")) {
+          const [range, step] = field.split("/");
+          return {
+            isStep: true,
+            step: parseInt(step),
+            range: range === "*" ? null : range,
+          };
+        }
+        return { isStep: false };
+      };
+
+      const getNextValueForStep = (current, step, min, max) => {
+        let next = current + (step - (current % step));
+        if (next > max) {
+          next = min + (step - (min % step));
+        }
+        return next;
+      };
+
       // Handle minute
-      if (minute === "*") {
-        next.setMinutes(next.getMinutes() + 1);
-      } else {
+      const minuteStep = parseStepValue(minute);
+      if (minuteStep.isStep) {
+        const currentMinute = next.getMinutes();
+        const nextMinute = getNextValueForStep(currentMinute, minuteStep.step, 0, 59);
+        next.setMinutes(nextMinute);
+        if (nextMinute <= currentMinute) {
+          next.setHours(next.getHours() + 1);
+        }
+      } else if (minute !== "*") {
         const minuteValue = parseInt(minute);
         next.setMinutes(minuteValue);
         if (next <= startDate) {
@@ -78,28 +158,65 @@ const CrontabNextRuns = ({ crontabValue }) => {
       }
 
       // Handle hour
-      if (hour !== "*") {
+      const hourStep = parseStepValue(hour);
+      if (hourStep.isStep) {
+        const currentHour = next.getHours();
+        const nextHour = getNextValueForStep(currentHour, hourStep.step, 0, 23);
+        next.setHours(nextHour);
+        if (nextHour <= currentHour) {
+          next.setDate(next.getDate() + 1);
+        }
+      } else if (hour !== "*") {
         const hourValue = parseInt(hour);
         next.setHours(hourValue);
-        if (next <= startDate) next.setDate(next.getDate() + 1);
+        if (next <= startDate) {
+          next.setDate(next.getDate() + 1);
+        }
       }
 
       // Handle day of month
-      if (dayMonth !== "*") {
+      const dayMonthStep = parseStepValue(dayMonth);
+      if (dayMonthStep.isStep) {
+        const currentDay = next.getDate();
+        const nextDay = getNextValueForStep(currentDay, dayMonthStep.step, 1, 31);
+        next.setDate(nextDay);
+        if (nextDay <= currentDay) {
+          next.setMonth(next.getMonth() + 1);
+        }
+      } else if (dayMonth !== "*") {
         const dayValue = parseInt(dayMonth);
         next.setDate(dayValue);
-        if (next <= startDate) next.setMonth(next.getMonth() + 1);
+        if (next <= startDate) {
+          next.setMonth(next.getMonth() + 1);
+        }
       }
 
       // Handle month
-      if (month !== "*") {
-        const monthValue = parseInt(month) - 1;
+      const monthStep = parseStepValue(month);
+      if (monthStep.isStep) {
+        const currentMonth = next.getMonth() + 1; // JavaScript months are 0-based
+        const nextMonth = getNextValueForStep(currentMonth, monthStep.step, 1, 12) - 1;
+        next.setMonth(nextMonth);
+        if (nextMonth <= currentMonth - 1) {
+          next.setFullYear(next.getFullYear() + 1);
+        }
+      } else if (month !== "*") {
+        const monthValue = parseInt(month) - 1; // Convert to 0-based month
         next.setMonth(monthValue);
-        if (next <= startDate) next.setFullYear(next.getFullYear() + 1);
+        if (next <= startDate) {
+          next.setFullYear(next.getFullYear() + 1);
+        }
       }
 
       // Handle day of week
-      if (dayWeek !== "*") {
+      const dayWeekStep = parseStepValue(dayWeek);
+      if (dayWeekStep.isStep) {
+        const currentDayOfWeek = next.getDay();
+        const nextDayOfWeek = getNextValueForStep(currentDayOfWeek, dayWeekStep.step, 0, 6);
+        while (next.getDay() !== nextDayOfWeek || next <= startDate) {
+          next.setDate(next.getDate() + 1);
+        }
+      } else if (dayWeek !== "*") {
         const dayWeekValue = parseInt(dayWeek);
         while (next.getDay() !== dayWeekValue || next <= startDate) {
           next.setDate(next.getDate() + 1);
@@ -107,10 +224,13 @@ const CrontabNextRuns = ({ crontabValue }) => {
       }
 
       // Final check if date is still in the past
-      if (next <= startDate) next.setDate(next.getDate() + 1);
+      if (next <= startDate) {
+        next.setDate(next.getDate() + 1);
+      }
 
       return next;
     } catch (error) {
+      console.error("Error in calculateNextRun:", error);
       return null;
     }
   };

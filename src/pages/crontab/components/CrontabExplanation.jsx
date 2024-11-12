@@ -37,6 +37,22 @@ const CrontabExplanation = ({ crontabValue, invalidFields = [], onRandomGenerate
     "*": "day",
   };
 
+  const monthMap = {
+    1: "January",
+    2: "February",
+    3: "March",
+    4: "April",
+    5: "May",
+    6: "June",
+    7: "July",
+    8: "August",
+    9: "September",
+    10: "October",
+    11: "November",
+    12: "December",
+    "*": "month",
+  };
+
   const parsed = parseCrontabExpression(crontabValue || "");
   const isValid = invalidFields.length === 0;
   const dayOfWeekText = parsed.dayOfWeek
@@ -60,25 +76,105 @@ const CrontabExplanation = ({ crontabValue, invalidFields = [], onRandomGenerate
     transition: "background-color 0.2s ease",
   });
 
+  const getFieldExplanation = (field, fieldType) => {
+    if (field === "*") return "any";
+
+    // Handle lists
+    if (field.includes(",")) {
+      return field
+        .split(",")
+        .map((part) => getFieldExplanation(part, fieldType))
+        .join(" or ");
+    }
+
+    // Handle steps
+    if (field.includes("/")) {
+      const [range, step] = field.split("/");
+      const stepText = `every ${step}`;
+      const unitText = getUnitText(fieldType, parseInt(step));
+
+      return range !== "*"
+        ? `${stepText} ${unitText} from ${getFieldExplanation(range, fieldType)}`
+        : `${stepText} ${unitText}`;
+    }
+
+    // Handle ranges
+    if (field.includes("-")) {
+      const [start, end] = field.split("-");
+      if (fieldType === "month") {
+        return `from ${monthMap[start]} to ${monthMap[end]}`;
+      }
+      if (fieldType === "day of week") {
+        return `from ${dayOfWeekMap[start]} to ${dayOfWeekMap[end]}`;
+      }
+      return `from ${start} to ${end}`;
+    }
+
+    // Handle single values
+    if (fieldType === "month") return monthMap[field];
+    if (fieldType === "day of week") return dayOfWeekMap[field];
+    return field;
+  };
+
+  const getUnitText = (fieldType, step) => {
+    const units = {
+      minute: "minute",
+      hour: "hour",
+      "day of month": "day",
+      month: "month",
+      "day of week": "day",
+    };
+    const unit = units[fieldType];
+    return step > 1 ? `${unit}s` : unit;
+  };
+
+  const getExplanationParts = () => {
+    const minuteText = getFieldExplanation(parsed.minute, "minute");
+    const hourText = getFieldExplanation(parsed.hour, "hour");
+    const dayMonthText = getFieldExplanation(parsed.dayOfMonth, "day of month");
+    const monthText = getFieldExplanation(parsed.month, "month");
+    const dayWeekText = getFieldExplanation(parsed.dayOfWeek, "day of week");
+
+    return [
+      { text: "At ", field: null },
+      { text: hourText, field: 1 },
+      { text: ":", field: null },
+      { text: minuteText, field: 0 },
+      { text: " on ", field: null },
+      { text: dayMonthText, field: 2 },
+      { text: " of ", field: null },
+      { text: monthText, field: 3 },
+      { text: " and every ", field: null },
+      { text: dayWeekText, field: 4 },
+    ];
+  };
+
   return (
     <>
       <Typography sx={{ color: "text.secondary", mb: 1, fontSize: "2rem" }}>
-        "At{" "}
-        <Typography component="span" sx={getFieldStyle(0)}>
-          {`${parsed.hour}:${parsed.minute}`}
-        </Typography>{" "}
-        on day-of-month{" "}
-        <Typography component="span" sx={getFieldStyle(2)}>
-          {parsed.dayOfMonth}
-        </Typography>{" "}
-        of{" "}
-        <Typography component="span" sx={getFieldStyle(3)}>
-          {parsed.month}
-        </Typography>{" "}
-        and every{" "}
-        <Typography component="span" sx={getFieldStyle(4)}>
-          {dayOfWeekText}
-        </Typography>
+        "
+        {getExplanationParts().map((part, index) => (
+          <React.Fragment key={index}>
+            {part.field !== null ? (
+              <Typography
+                component="span"
+                sx={{
+                  color: getFieldColor(part.field),
+                  fontSize: "inherit",
+                  opacity: invalidFields.includes(part.field) ? 0.5 : 1,
+                  backgroundColor: focusedField === part.field ? "rgba(255, 215, 0, 0.1)" : "transparent",
+                  padding: "0 4px",
+                  borderRadius: "4px",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                {part.text}
+              </Typography>
+            ) : (
+              part.text
+            )}
+          </React.Fragment>
+        ))}
         "
       </Typography>
       <Typography sx={{ color: "text.secondary" }}>
